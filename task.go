@@ -1,27 +1,40 @@
-// Атомарные операции (sync/atomic)
-// Увеличение общего int в нескольких горутинах
 package main
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 )
+
+var mu sync.Mutex
+var delta atomic.Int32
+var counter atomic.Int32
+
+func increment() {
+	delta.Add(1)
+	sleep(10)
+	counter.Add(delta.Load())
+}
+
+func sleep(maxMs int) {
+	dur := time.Duration(rand.Intn(maxMs) * int(time.Millisecond))
+	time.Sleep(dur)
+}
 
 func main() {
 	var wg sync.WaitGroup
+	wg.Add(100)
 
-	var total atomic.Int32
-	for range 5 {
-		wg.Add(1)
+	for range 100 {
 		go func() {
-			defer wg.Done()
-			for range 10000 {
-				total.Add(1)
-			}
+			increment()
+			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-	fmt.Println("total", total.Load())
+	d, c := delta.Load(), counter.Load()
+	fmt.Println(d, c)
 }
